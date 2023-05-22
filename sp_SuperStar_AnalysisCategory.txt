@@ -1,0 +1,293 @@
+USE [SprTovar]
+GO
+/****** Object:  StoredProcedure [dbo].[sp_SuperStar_AnalysisCategory]    Script Date: 22.05.2023 17:55:26 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:	Черных П.Д.
+-- Create date: 03.02.2023
+-- Description:	Отчет СуперСтар для программы "Анализ категорий"
+-- =============================================
+ALTER PROCEDURE [dbo].[sp_SuperStar_AnalysisCategory] 
+   @id_ndok varchar(10), @molec varchar(max), @prim varchar(max), @nazn varchar(max), @prod varchar(max), @prodmark varchar(max)
+AS
+BEGIN
+declare @xml_molecule as xml, @xml_prim as xml, @xml_nazn as xml, @xml_prod as xml, @xml_prodmark as xml
+set @molec = replace(@molec,'''','')
+set @xml_molecule = cast(('<molecule>' + replace(@molec, ',', '</molecule><molecule>') + '</molecule>') as xml) 
+
+set @prim = replace(@prim,'''','')
+set @xml_prim = cast(('<prim>' + replace(@prim, ';', '</prim><prim>') + '</prim>') as xml) 
+
+set @nazn = replace(@nazn,'''','')
+set @xml_nazn = cast(('<nazn>' + replace(@nazn, ',', '</nazn><nazn>') + '</nazn>') as xml) 
+
+set @prod = replace(@prod,'''','')
+set @xml_prod = cast(('<prod>' + replace(@prod, ',', '</prod><prod>') + '</prod>') as xml) 
+
+set @prodmark = replace(@prodmark,'''','')
+set @xml_prodmark = cast(('<prodmark>' + replace(@prodmark, ',', '</prodmark><prodmark>') + '</prodmark>') as xml) 
+
+--  if object_id('tempdb..#lz_main') is not null drop table #lz_main
+--  create table #lz_main (idpos int, cat1 int, cat2 int, cat3 int, cat4 int, cat5 int, matrix varchar(5),comm_norm varchar(200), comm_cena varchar(200), comm_motivation varchar(200))
+
+--  Declare  @Query nvarchar(max)
+--  set @Query=' select  distinct  lz.idpos, lz.cat1, lz.cat2, lz.cat3, lz.cat4, lz.cat5, lz.matrix,comm_norm, comm_cena, comm_motivation from  lz.dbo.lz_main lz where coalesce(pr_del,'''')<>''del'' '
+
+--  insert into #lz_main(idpos, cat1, cat2, cat3, cat4, cat5, matrix, comm_norm, comm_cena, comm_motivation)
+--  exec [SQL-srv-02].nakl.dbo.pt_from_srv_02 @query
+
+
+
+if object_id('tempdb..#sch_sum') is not null drop table #sch_sum
+create table #sch_sum (idpos int, ceno money)
+insert into #sch_sum(idpos, ceno)
+select distinct idpos, ceno from nakl.dbo.schemaCeno where idsch=45327 --схема цц ф.ц. под Имплозию Летние звезды (А со ск) 22.02.18
+
+if object_id('tempdb..#sch_cont') is not null drop table #sch_cont
+create table #sch_cont (idpos int, ceno money)
+insert into #sch_cont(idpos, ceno)
+select distinct idpos,ceno=min(ceno) from nakl.dbo.schemaCeno sc
+inner join nakl.dbo.schemas s on s.idsch=sc.idsch
+where  (ceno <> 0) and s.name like '%контракт маркетинг%' and s.enable=1
+group by sc.idpos
+
+
+--select n.shortname, o.idpos, n.live, o.sred_kol_v_mes, o.sred_kol_v_mes1, o.sred_kol_v_mes2,
+--o.cena_pk,
+--o.cena_pk_sh,
+--o.cena_pk_rasc,
+--o.cena_pk_pl,
+--o.cena_bez_kn, 
+--o.cena_text,
+--o.sip_cena,
+--o.sip_cena_sh,
+--o.sip_cena_rasc,
+--o.sip_cena_pl,
+--o.bonus_perc,
+--o.bonus_perc_sh,
+--o.bonus_perc_rasc,
+--o.bonus_perc_pl,
+--o.bonus_rub,
+--o.bonus_rub_sh,
+--o.bonus_rub_rasc,
+--o.bonus_rub_pl,
+--o.bonus_mp,
+--o.bonus_mp_sh,
+--o.bonus_mp_rasc,
+--o.bonus_mp_pl,
+--o.seb,
+--o.seb_sh,
+--o.seb_rasc,
+--o.seb_pl,
+--rrc=case when (coalesce(o.rrc,0)>0 and coalesce(o.rrc,0)<coalesce(o.rrc6,0)) then coalesce(o.rrc,0) else coalesce(o.rrc6,0) end, 
+--o.rrc6,
+--o.rrc8, o.rrc2, o.rrc3, o.rrc5,
+--o.rrc7, o.rrc1,
+--o.rrc9, o.rrc12, o.rrc10, o.rrc11, o.rrc4, o.rrc13, o.min_comp_price, o.cena_sopr, o.cena_sopr1, o.cena_pz, o.cena_pz2,
+--o.tn_itog,  -- 20220610
+--o.pz_tn_itog,  -- 20220610
+--a_tn_itog = coalesce(cena_sopr, 0) - coalesce(seb_rasc, 0),
+--a_tn_itog_pl = coalesce(cena_sopr, 0) - coalesce(seb_pl, 0),
+--o.pz_tn_itog_sh,
+--o.pz_tn_itog_pl,
+--f_m_tn_itog=coalesce(cena_sopr1,0) - coalesce(seb_sh, 0),
+--pz_m_tn_itog=coalesce(cena_pz2,0) - coalesce(seb_sh, 0),
+--f_p_seb_perc=case when coalesce(seb_sh,0)<>0 then (coalesce(cena_sopr,0)-coalesce(seb_sh,0))/coalesce(seb_sh,0) else null end,
+--f_m_seb_perc=case when coalesce(seb_sh,0)<>0 then (coalesce(cena_sopr1,0)-coalesce(seb_sh,0))/coalesce(seb_sh,0) else null end,
+--pz_p_seb_perc=case when coalesce(seb_sh,0)<>0 then (coalesce(cena_pz,0)-coalesce(seb_sh,0))/coalesce(seb_sh,0) else null end,
+--pz_m_seb_perc=case when coalesce(seb_sh,0)<>0 then (coalesce(cena_pz2,0)-coalesce(seb_sh,0))/coalesce(seb_sh,0) else null end,
+--o.pz_tn_itog_rasc,  -- 20220610
+--o.tn_itog_pr, -- 20220610
+--o.tn_itog_pr_sh, -- 20220610
+--o.tn_itog_pr_rasc, -- 20220610
+--o.rrc_k_ave_cena, -- 20220610
+--o.pz_k_ave_cena,
+--o.prem,  -- 20220610
+--o.kolt,
+--o.kol_rc, o.kol_rc_prof, o.kol_rc_puls, o.kol_rc_puek, o.kol_rc_pukrd, o.kol_rc_pumkh,
+--o.kol_ozh, o.kol_ozh_prof, o.kol_ozh_krd, o.kol_ozh_mkh,
+--o.kol_apt_norm, o.kol_apt_pr3, o.kol_apt_ost,
+--o.star, o.sstar,
+--o.ssstar, -- 20220610
+--o.sssstar,
+--o.bad, -- 20220610
+--o.good, -- 20220610
+--o.kol_reg,
+--o.super_tn_itog, o.super_tn_itog_sh,
+--o.super_tn_itog_rasc,   --20220610
+--o.kol_zam, o.min_ceno, o.max_ceno,
+--o.cenoprih, o.kol_apt_0_ost, o.max_cena_rozn_envd, appl.name appl_name, m.name mol_name, f.name firm_name, o.max_pr_konk,
+--o.kol_sopr_srav, o.kol_sopr1_srav, o.kol_pz_srav, o.kol_pz2_srav, o.kol_bolshe_pz2_srav,
+--lz.cat1, lz.cat2, lz.cat3, lz.cat4, lz.cat5, lz.matrix, 
+--o.tns, o.tns_sr,  --20220610
+--margin_a = (case when coalesce(cena_sopr, 0) <> 0 then (coalesce(cena_sopr,0) - coalesce(seb_rasc,0)) / coalesce(cena_sopr, 0) * 100 else 0 end),
+--margin_pz = case when coalesce(cena_pz, 0) <> 0 then (coalesce(cena_pz, 0)-coalesce(seb_rasc, 0)) / coalesce(cena_pz, 0) * 100 else 0 end,
+--kob_apt = case when coalesce(sred_kol_v_mes1, 0) <> 0 then coalesce(kolt, 0) / coalesce(sred_kol_v_mes1, 0) end,
+--kol_all = coalesce(kolt, 0) + coalesce(kol_rc, 0) + coalesce(kol_rc_prof, 0) + coalesce(kol_rc_puls, 0) + coalesce(kol_rc_puek, 0) + coalesce(kol_rc_pukrd, 0) + coalesce(kol_rc_pumkh, 0),
+--defect.def_react, defect.def_prim, IIF(def_sch.idpos is null, '', '+') def_sch, defect.dd_end def_dd_end, status_tov=sss.name, status_apt=ssa.name, status_prior=coalesce(sss.priority,0),
+--kol_ia1, kol_ia2, kol_ia3,
+--fc_summer=sch_summer.ceno, ceno_contract=sch_contract.ceno,
+--lz.comm_norm, lz.comm_cena, lz.comm_motivation
+--from SprTovar.dbo.SuperStar o
+--left join pumping.dbo.npos1 n on n.idpos=o.idpos
+--left join SprTovar.dbo.Goods g on g.idpos=o.idpos
+--left join SprTovar.dbo.Firms f on f.idpro=g.idpro
+--left join SprTovar.dbo.Molecule m on m.id=g.idmol
+--left join SprTovar.dbo.Applications appl on appl.id=g.idappl
+--left join #lz_main lz on lz.idpos=o.idpos
+--left join SprTovar.dbo.SuperStarStatus sss on sss.id_status=coalesce(g.superstar_status,0)
+--left join SprTovar.dbo.SuperStarApt ssa on ssa.id_apt=coalesce(g.superstar_apt,0)
+--left join (
+--	select d.idpos, concat(dr.name, IIF(d.dd_end = '2000-01-01', '', concat(' (до ',d.dd_end,')'))) def_react, d.prim def_prim, IIF(d.dd_end = '2000-01-01', null, d.dd_end) dd_end
+--	from SprTovar.dbo.Defect d
+--	inner join (
+--		select max(id) id
+--		from SprTovar.dbo.Defect d
+--		where GetDate() between d.dd_begin and IIF(d.dd_end = '2000-01-01', GetDate(), d.dd_end)
+--		group by idpos
+--	) d2 on d2.id=d.id
+--	inner join SprTovar.dbo.DefectReasons dr on dr.id = d.id_reason
+--) defect on defect.idpos=o.idpos
+--left join
+--(
+----    select distinct idpos from nakl.dbo.SchemaCeno where IdSch in (46152, 40880)
+--select distinct idpos=gk.ID_LINE from pumping.dbo.dbsGroupKeys gk where gk.id_gr in (4662058,4662059)
+--) def_sch on def_sch.idpos = o.idpos
+--left join #sch_summer sch_summer on sch_summer.idpos = o.idpos
+--left join #sch_contract sch_contract on sch_contract.idpos = o.idpos
+--where id_ndok=@id_ndok
+--order by m.name, status_prior desc
+----  order by m.name, case when coalesce(o.tn_itog,0)<>0 then o.tn_itog else o.pz_tn_itog end desc
+
+--if object_id('tempdb..#lz_main') is not null drop table #lz_main
+--if object_id('tempdb..#sch_contract') is not null drop table #sch_contract
+--if object_id('tempdb..#sch_summer') is not null drop table #sch_summer
+
+create table #t_molecule (molec varchar (200)) --молекула
+insert into #t_molecule(molec)
+SELECT x.m.query ('.').value('.','VARCHAR(max)') AS VALUE FROM @xml_molecule.nodes ('/molecule') AS x(m)
+
+create table #t_prim (prim varchar (200)) --применение
+insert into #t_prim(prim)
+SELECT x.m.query ('.').value('.','VARCHAR(max)') AS VALUE FROM @xml_prim.nodes ('/prim') AS x(m)
+
+create table #t_nazn (nazn varchar (200)) --назчанение
+insert into #t_nazn(nazn)
+SELECT x.m.query ('.').value('.','VARCHAR(max)') AS VALUE FROM @xml_nazn.nodes ('/nazn') AS x(m)
+
+create table #t_prod (prod varchar (200)) --производитель
+insert into #t_prod(prod)
+SELECT x.m.query ('.').value('.','VARCHAR(max)') AS VALUE FROM @xml_prod.nodes ('/prod') AS x(m)
+
+create table #t_prodmark (prodmark varchar (200)) --производитель по маркетингу
+insert into #t_prodmark(prodmark)
+SELECT x.m.query ('.').value('.','VARCHAR(max)') AS VALUE FROM @xml_prodmark.nodes ('/prodmark') AS x(m)
+
+
+declare @pri varchar(max), @mol varchar(max), @naz varchar(max), @pro varchar(max), @prmark varchar(max), @sql varchar(max)
+set @mol = (select top 1 molec from #t_molecule)
+set @pri = (select top 1 prim from #t_prim)
+set @nazn = (select top 1 nazn from #t_nazn)
+set @pro = (select top 1 prod from #t_prod)
+set @prmark = (select top 1 prodmark from #t_prodmark)
+
+if @mol='' set @mol = '' else set @mol = ' and m.name in (select trim(molec) from #t_molecule)' 
+if @pri='' set @pri = '' else set @pri = ' and appl.name in (select trim(prim) from #t_prim)' 
+if @nazn='' set @nazn = '' else set @nazn = ' and applq.name in (select trim(nazn) from #t_nazn)'
+if @pro='' set @pro = '' else set @pro = ' and f.name in (select trim(prod) from #t_prod)' 
+if @prmark='' set @prmark = '' else set @prmark = ' and fm.name in (select trim(prodmark) from #t_prodmark)' 
+
+declare @year varchar(4)
+set @year = YEAR(GETDATE())
+
+exec(' select n.shortname [Наименование],
+o.idpos [Код ГЕС],
+n.live [ЖВ],
+CAST(o.sred_kol_v_mes AS INT) [Ср. кол-во за период 1],
+CAST(o.sred_kol_v_mes1 AS INT) [Ср. кол-во за период 2],
+CAST(o.sred_kol_v_mes2 AS INT) [Ср. кол-во за период 3],
+CAST(o.cena_pk_sh AS DECIMAL(9,2))[Цена по прямому контракту ' + @year + '],
+CAST(CAST(o.cena_bez_kn AS DECIMAL(9,2))AS FLOAT) [Средняя цена, без КН''5],
+CAST(o.sip_cena_sh AS DECIMAL(14,2))[sip-цена ' + @year + '],
+CAST((o.bonus_perc_sh*100) AS FLOAT) [Бонус по договору ' + @year + ', %],
+CAST(CAST(o.bonus_rub_sh AS DECIMAL(9,2)) AS FLOAT)[Бонус по договору '  + @year + ', руб.],
+o.bonus_mp_sh [Бонус по МП ' + @year +'],
+CAST(CAST(o.seb_sh AS DECIMAL(9,2)) AS FLOAT) [Себ. ' + @year + '],
+CAST(o.rrc1 AS INT) [Годовалов Пермь], CAST(o.rrc9 AS INT) [Живика Пермь],
+CAST(o.rrc12 AS INT) [Живика Екат], CAST(o.rrc10 AS INT) [Апрель Пермь],
+CAST(o.rrc11 AS INT) [Апрель Краснодар],
+CAST(o.rrc4 AS INT) [Столички Москва],
+CAST(o.rrc13 AS INT) [ГорЗдрав Москва],
+CAST(CAST(coalesce(cena_sopr, 0)-coalesce(seb_rasc, 0) AS DECIMAL(9,2)) AS FLOAT) [Ф П ТН итог ' + @year + ', руб.],
+CAST(CAST((o.pz_tn_itog_sh) AS DECIMAL(9,2)) AS FLOAT) [ПЗ П ТН итог ' + @year + ',руб.], 
+CAST((case when coalesce(o.seb_sh,0)<>0 then (coalesce(cena_sopr,0)-coalesce(o.seb_sh,0))/coalesce(o.seb_sh,0)*100 else 0 end) AS FLOAT)[% Ф П],
+CAST((case when coalesce(seb_sh,0)<>0 then (coalesce(cena_sopr1,0)-coalesce(seb_sh,0))/coalesce(seb_sh,0)*100 else null end) AS FLOAT)[% ПЗ П],
+CAST(o.kolt AS INT) [Ост. аптек, упак], CAST(o.kol_rc AS INT) [Ост.Крон(осн.склад), упак''5],
+CAST(o.kol_rc_puls AS INT) [Ост. Крон (Пульс Каз), упак], CAST(o.kol_rc_puek AS INT) [Ост. Крон (Пульс Екат), упак],
+o.kol_rc_pukrd [Ост. Крон(Пульс Краснодар), упак], o.kol_rc_pumkh [Ост. Крон(Пульс Москва ХАБ), упак''5],
+o.kol_rc_puspb [Ост Крон (Пульс СПб), упак],
+o.kol_rc_puyar [Ост Крон (Пульс Ярославль), упак],
+CAST(o.kol_apt_norm AS INT) [Норматив, кол-во аптек],
+o.kol_apt_ost [Остатки, кол-во аптек],
+o.star [ОБЗ],
+o.sstar [ЛЗ],
+o.sssstar [ВЛЗ],
+f.name [Производитель],
+fm.name [Производитель из маркетинга],
+m.name [Молекула],
+o.kol_reg [Кол-во регионов, закрепление за РЦ''5], 
+appl.name [Применение],
+applq.name [Назначение],
+CAST(o.cena_pz AS INT)[ПЗ П],
+CAST(o.cena_sopr AS INT) [Ф П],
+o.kol_apt_0_ost [Кол-во аптек с норм без ост],
+CAST(o.max_cena_rozn_envd AS INT) [Макс. розн. цена реестра (для ЕНВД)],
+CAST(o.max_pr_konk AS INT)[Макс. % из конкурса],
+CAST((case when coalesce(cena_sopr,0)<>0 then (coalesce(cena_sopr,0)-coalesce(seb_rasc,0))/coalesce(cena_sopr,0)*100 else 0 end) as FLOAT)[Маржа Ф П],
+CAST((case when coalesce(cena_pz,0)<>0 then (coalesce(cena_pz,0)-coalesce(seb_rasc,0))/coalesce(cena_pz,0)*100 else 0 end) AS FLOAT) [Маржа ПЗ П],
+defect.def_react [Причина дефектуры],
+defect.def_prim [Примечание],
+IIF(def_sch.idpos is null, '''', ''+'') [Расценка по дефектуре],
+sss.name [Статус товара],
+ssa.name [Статус аптеки],
+sch.ceno [ФЦ ЛЗ/СТМ],
+schc.ceno [Контракт]
+from SprTovar.dbo.SuperStar o
+left join pumping.dbo.npos1 n on n.idpos=o.idpos
+left join SprTovar.dbo.Goods g on g.idpos=o.idpos
+left join SprTovar.dbo.Firms f on f.idpro=g.idpro
+left join SprTovar.dbo.Molecule m on m.id=g.idmol
+left join SprTovar.dbo.Applications appl on appl.id=g.idappl
+left join SprTovar.dbo.ApplicationsForQwerty applq on applq.id = g.idapplq
+left join SprTovar.dbo.FirmsMarket fm on fm.id=f.id_firmMarket
+left join SprTovar.dbo.SuperStarStatus sss on sss.id_status=coalesce(g.superstar_status,0)
+left join SprTovar.dbo.SuperStarApt ssa on ssa.id_apt=coalesce(g.superstar_apt,0)
+left join (
+	select d.idpos, concat(dr.name, IIF(d.dd_end = ''2000-01-01'', '''', concat(''(до '',d.dd_end,'')''))) def_react, d.prim def_prim, IIF(d.dd_end = ''2000-01-01'', null, d.dd_end) dd_end
+	from SprTovar.dbo.Defect d
+	inner join (
+		select max(id) id
+		from SprTovar.dbo.Defect d
+		where GetDate() between d.dd_begin and IIF(d.dd_end = ''2000-01-01'', GetDate(), d.dd_end)
+		group by idpos
+	) d2 on d2.id=d.id
+	inner join SprTovar.dbo.DefectReasons dr on dr.id = d.id_reason
+) defect on defect.idpos=o.idpos
+left join #sch_sum sch on sch.idpos = o.idpos
+left join #sch_cont schc on schc.idpos = o.idpos
+  left join
+  (
+    select distinct idpos=gk.ID_LINE from pumping.dbo.dbsGroupKeys gk where gk.id_gr in (4662058,4662059,4708331)
+  ) def_sch on def_sch.idpos = o.idpos
+
+where id_ndok = ' + @id_ndok  + @mol + @pri + @nazn + @pro + @prmark)
+
+drop table #t_prim
+drop table #t_molecule
+drop table #t_nazn
+drop table #t_prod
+drop table #t_prodmark
+END
